@@ -1,1 +1,7 @@
 scikit-image==0.12
+elasticsearch
+scipy
+numpy
+image_match
+opencv
+
