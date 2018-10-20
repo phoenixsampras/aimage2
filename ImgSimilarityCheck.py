@@ -11,14 +11,12 @@ from PIL import Image
 from flask import Flask, request, render_template
 from datetime import datetime
 app = Flask(__name__)
-
+FLASK_DEBUG=1
 
 from image_match.goldberg import ImageSignature
 
 # def main():
 #     searchSimilarImage('/mnt/c/Users/Phoenix Sampras/Documents/bb/fegasacruz/6332','/mnt/c/Users/Phoenix Sampras/Documents/bb/fegasacruz/test/2.bmp',10)
-
-
 
 def searchSimilarImage(imgDirectoryPath, testImagePath, topSearch):
     # imgDirectoryPath : Directory path where all images stored
@@ -41,6 +39,8 @@ def searchSimilarImage(imgDirectoryPath, testImagePath, topSearch):
                 ar = {'name': imgname + '.bmp','path': imgpath, 'distance': dis}
                 distances.append(ar)
     return sorted(distances, key=lambda k: k['distance'])
+    # return [(dists[id], img_paths[id]) for id in ids]
+
 
     # for i in range(topSearch):
     #     img = cv2.imread(newlist[i].get('path'))
@@ -58,10 +58,11 @@ def index():
         file = request.files['query_img']
 
         img = Image.open(file.stream)  # PIL image
-        uploaded_img_path = "upload/" + datetime.now().isoformat() + "_" + file.filename
+        uploaded_img_path = "static/upload/" + datetime.now().isoformat() + "_" + file.filename
         img.save(uploaded_img_path)
 
-        scores = searchSimilarImage('6332',uploaded_img_path,10)
+        scores = searchSimilarImage('static/6332',uploaded_img_path,10)
+
 
         print (scores)
 
