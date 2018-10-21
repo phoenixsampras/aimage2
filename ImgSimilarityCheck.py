@@ -10,6 +10,9 @@ import pickle
 from pathlib import Path
 from skimage import morphology
 from image_match.goldberg import ImageSignature
+from scipy.spatial.distance import directed_hausdorff
+import scipy.misc
+
 
 # Flask stuff
 from PIL import Image
@@ -65,11 +68,11 @@ def doSearch(dbFilePath, imgDirectoryPath, testImagePath, topSearch):
     db_file = Path(dbFilePath)
     if db_file.is_file():
         print('Found DB File')
-        fixeddistances = searchSimilarImages(dbFilePath, testImagePath, topSearch)
+        fixeddistances = searchSimilarImagesHausdorff(dbFilePath, testImagePath, topSearch)
     else:
         print('Not Found DB File... Creating new One')
         createDB(imgDirectoryPath, dbFilePath)
-        fixeddistances = searchSimilarImages(dbFilePath, testImagePath, topSearch)
+        fixeddistances = searchSimilarImagesHausdorff(dbFilePath, testImagePath, topSearch)
 
     return fixeddistances
 
@@ -115,6 +118,45 @@ def searchSimilarImages(dbFilePath, testImagePath, topSearch):
         fixeddistances.append(newlist[i])
     return fixeddistances
 
+def searchSimilarImagesHausdorff(dbFilePath, testImagePath, topSearch):
+    print('Starting Search')
+    distancemap = []
+    img = cv2.imread(testImagePath)
+    dst = cv2.fastNlMeansDenoisingColored(img, None, 10, 10, 7, 21)
+    gaussian_3 = cv2.GaussianBlur(dst, (9, 9), 10.0)
+    sharpened = cv2.addWeighted(dst, 1.5, gaussian_3, -0.5, 0, dst)
+    gray = cv2.cvtColor(sharpened, cv2.COLOR_BGR2GRAY)
+    th, im_thresh = cv2.threshold(gray, 0, 255, cv2.THRESH_BINARY + cv2.THRESH_OTSU)
+    kernel = np.ones((3, 3), dtype=np.uint8)
+    binary_cleaned = cv2.morphologyEx(im_thresh, cv2.MORPH_OPEN, kernel)
+    binary_mask = cv2.bitwise_not(binary_cleaned)
+    imglab = morphology.label(binary_mask)
+    cleaned = morphology.remove_small_objects(imglab, min_size=500, connectivity=8)
+    img3 = np.zeros((cleaned.shape))
+    img3[cleaned > 0] = 255
+    img3 = np.uint8(img3)
+    clean_image = cv2.bitwise_not(img3)
+    testdata = np.array(clean_image)
+
+
+    with open(dbFilePath, 'rb') as filehandle:
+        # read the data as binary data stream
+        distances = pickle.load(filehandle)
+        for i in range(len(distances)):
+            imgname = distances[i].get('name')
+            imgpath = distances[i].get('path')
+            data = distances[i].get('data')
+            localdata = cv2.cvtColor(data, cv2.COLOR_RGB2GRAY)
+            dis = directed_hausdorff(testdata, localdata)[0]
+            ar = {'name': imgname + '.bmp', 'path': imgpath, 'distance': dis}
+            distancemap.append(ar)
+    
+    newlist = sorted(distancemap, key=lambda k: k['distance'])
+    fixeddistances = []
+    for i in range(topSearch):
+        fixeddistances.append(newlist[i])
+    return fixeddistances
+
 
 # if __name__ == '__main__':
 #     main()
@@ -126,7 +168,7 @@ def index():
         img = Image.open(file.stream)  # PIL image
         uploaded_img_path = "static/upload/" + datetime.now().isoformat() + "_" + file.filename
         img.save(uploaded_img_path)
-        scores = doSearch('static/localdb.data', 'static/6332', uploaded_img_path, 100)
+        scores = doSearch('static/localdb.data', 'static/6332', uploaded_img_path, 10)
         print(scores)
         return render_template('index.html', query_path=uploaded_img_path, scores=scores)
     else:
