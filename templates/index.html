@@ -6,6 +6,10 @@
             <h1>Simple image search engine</h1>
             <form method="POST" enctype="multipart/form-data">
                 <input type="file" name="query_img"><br>
+                <select name="search_type">
+                    <option value="1" selected>SCIPY</option>
+                    <option value="2">Hausdorff</option>
+                </select>
                 <input type="submit">
             </form>
             <h2>Query:</h2>
@@ -15,7 +19,7 @@
             <h2>Results:</h2>
             {% for score in scores %}
             <figure style="float: left; margin-right: 20px; margin-bottom: 20px;">
-                <img src="{{ score.path }}" height="200px">
+                <img src="{{ score.path }}" height="50px">
                 <figcaption>{{ score.distance }}</figcaption>
             </figure>
             {% endfor %}

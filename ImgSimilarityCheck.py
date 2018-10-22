@@ -165,10 +165,16 @@ def searchSimilarImagesHausdorff(dbFilePath, testImagePath, topSearch):
 def index():
     if request.method == 'POST':
         file = request.files['query_img']
+        search_type = request.args.get("search_type")
         img = Image.open(file.stream)  # PIL image
         uploaded_img_path = "static/upload/" + datetime.now().isoformat() + "_" + file.filename
         img.save(uploaded_img_path)
-        scores = doSearch('static/localdb.data', 'static/6332', uploaded_img_path, 10)
+        if search_type == 1:
+            print("searchSimilarImages")
+            scores = doSearch('static/localdb.data', 'static/6332', uploaded_img_path, 100)
+        else:
+            print("searchSimilarImagesHausdorff")
+            scores = doSearch('static/localdb.data', 'static/6332', uploaded_img_path, 100)
         print(scores)
         return render_template('index.html', query_path=uploaded_img_path, scores=scores)
     else:
