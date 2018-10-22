@@ -13,7 +13,6 @@ from image_match.goldberg import ImageSignature
 from scipy.spatial.distance import directed_hausdorff
 import scipy.misc
 
-
 # Flask stuff
 from PIL import Image
 from flask import Flask, request, render_template
@@ -48,8 +47,8 @@ def createDB(imgDirectoryPath, dbFilePath):
                 img3[cleaned > 0] = 255
                 img3 = np.uint8(img3)
                 clean_image = cv2.bitwise_not(img3)
-                clean_imagecol = cv2.cvtColor(clean_image, cv2.COLOR_GRAY2RGB)
-                localimg = np.array(clean_imagecol)
+                #clean_imagecol = cv2.cvtColor(clean_image, cv2.COLOR_GRAY2RGB)
+                localimg = np.array(clean_image)
                 # ar = {'name': imgname + '.bmp', 'path': 'static/6332/'+imgname + '.bmp', 'data': localimg}
                 ar = {'name': imgname + '.bmp', 'path': imgpath, 'data': localimg}
                 distances.append(ar)
@@ -95,8 +94,8 @@ def searchSimilarImages(dbFilePath, testImagePath, topSearch):
     img3[cleaned > 0] = 255
     img3 = np.uint8(img3)
     clean_image = cv2.bitwise_not(img3)
-    clean_imagecol = cv2.cvtColor(clean_image, cv2.COLOR_GRAY2RGB)
-    testdata = np.array(clean_imagecol)
+    #clean_imagecol = cv2.cvtColor(clean_image, cv2.COLOR_GRAY2RGB)
+    testdata = np.array(clean_image)
 
     with open(dbFilePath, 'rb') as filehandle:
         # read the data as binary data stream
@@ -118,6 +117,7 @@ def searchSimilarImages(dbFilePath, testImagePath, topSearch):
         fixeddistances.append(newlist[i])
     return fixeddistances
 
+
 def searchSimilarImagesHausdorff(dbFilePath, testImagePath, topSearch):
     print('Starting Search')
     distancemap = []
@@ -136,8 +136,7 @@ def searchSimilarImagesHausdorff(dbFilePath, testImagePath, topSearch):
     img3[cleaned > 0] = 255
     img3 = np.uint8(img3)
     clean_image = cv2.bitwise_not(img3)
-    testdata = np.array(clean_image)
-
+    testdata = np.array(clean_image).astype(float)
 
     with open(dbFilePath, 'rb') as filehandle:
         # read the data as binary data stream
@@ -145,12 +144,12 @@ def searchSimilarImagesHausdorff(dbFilePath, testImagePath, topSearch):
         for i in range(len(distances)):
             imgname = distances[i].get('name')
             imgpath = distances[i].get('path')
-            data = distances[i].get('data')
-            localdata = cv2.cvtColor(data, cv2.COLOR_RGB2GRAY)
-            dis = directed_hausdorff(testdata, localdata)[0]
+            localdata = distances[i].get('data').astype(float)
+            #localdata = cv2.cvtColor(data, cv2.COLOR_RGB2GRAY)
+            dis = max(directed_hausdorff(testdata, localdata)[0],directed_hausdorff(localdata,testdata)[0])
             ar = {'name': imgname + '.bmp', 'path': imgpath, 'distance': dis}
             distancemap.append(ar)
-    
+
     newlist = sorted(distancemap, key=lambda k: k['distance'])
     fixeddistances = []
     for i in range(topSearch):
@@ -165,16 +164,10 @@ def searchSimilarImagesHausdorff(dbFilePath, testImagePath, topSearch):
 def index():
     if request.method == 'POST':
         file = request.files['query_img']
-        search_type = request.args.get("search_type")
         img = Image.open(file.stream)  # PIL image
         uploaded_img_path = "static/upload/" + datetime.now().isoformat() + "_" + file.filename
         img.save(uploaded_img_path)
-        if search_type == 1:
-            print("searchSimilarImages")
-            scores = doSearch('static/localdb.data', 'static/6332', uploaded_img_path, 100)
-        else:
-            print("searchSimilarImagesHausdorff")
-            scores = doSearch('static/localdb.data', 'static/6332', uploaded_img_path, 100)
+        scores = doSearch('static/localdb.data', 'static/6332', uploaded_img_path, 10)
         print(scores)
         return render_template('index.html', query_path=uploaded_img_path, scores=scores)
     else:
